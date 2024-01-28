@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use aes_gcm::{aead::{Aead, AeadCore, KeyInit, OsRng, Nonce}, Aes256Gcm, Key, AesGcm};
 use aes_gcm::aead::consts::U12;
 use aes_gcm::aes::Aes256;
@@ -9,14 +10,71 @@ use sha3::digest::core_api::CoreWrapper;
 use crate::Document;
 use crate::emb25::index::{IndexUpdate, Term, Term2Document};
 
-struct SymmetricKey {
+#[derive(Clone)]
+pub struct SymmetricKey {
     key: Key<Aes256Gcm>,
 }
 
+impl SymmetricKey {
+    pub fn new() -> Self {
+        Self {
+            key: Aes256Gcm::generate_key(OsRng),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
-struct EncryptedDocument {
+pub struct EncryptedDocument {
     nonce: Vec<u8>,
     ciphertext: Vec<u8>,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+pub struct EncryptedIndex {
+    index: HashMap<Vec<u8>, Vec<u8>>,
+}
+
+impl EncryptedIndex {
+    pub fn new() -> Self {
+        Self {
+            index: HashMap::new(),
+        }
+    }
+
+    pub fn update(&mut self, index_update: &EncryptedIndexUpdate) {
+        index_update.add.iter().for_each(|r| {
+            self.index.insert(r.t.clone(), r.d.clone());
+        });
+    }
+
+    pub fn add(&mut self, key: Vec<u8>, value: Vec<u8>) {
+        self.index.insert(key, value);
+    }
+
+    pub fn get(&self, key: &[u8]) -> Option<&Vec<u8>> {
+        self.index.get(key)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+pub struct EncryptedDocumentStorage {
+    documents: HashMap<u64, EncryptedDocument>,
+}
+
+impl EncryptedDocumentStorage {
+    pub fn new() -> Self {
+        Self {
+            documents: HashMap::new(),
+        }
+    }
+
+    pub fn add(&mut self, id: u64, document: EncryptedDocument) {
+        self.documents.insert(id, document);
+    }
+
+    pub fn get(&self, id: u64) -> Option<&EncryptedDocument> {
+        self.documents.get(&id)
+    }
 }
 
 #[derive(PartialEq, Debug)]
@@ -25,9 +83,24 @@ pub struct EncryptedTerm2Document {
     d: Vec<u8>,
 }
 
+impl EncryptedTerm2Document {
+    pub fn new(term: Vec<u8>, document: Vec<u8>) -> Self {
+        Self {
+            t: term,
+            d: document,
+        }
+    }
+}
+
 #[derive(PartialEq, Debug)]
 pub struct EncryptedIndexUpdate {
     add: Vec<EncryptedTerm2Document>,
+}
+
+impl EncryptedIndexUpdate {
+    pub fn insert(vec: Vec<EncryptedTerm2Document>) -> Self {
+        Self { add: vec }
+    }
 }
 
 impl EncryptedIndexUpdate {
@@ -84,7 +157,6 @@ pub fn get_document_id(term: &Term, freq: u32, value: Vec<u8>, key: &[u8]) -> u6
     h ^ v
 }
 
-
 pub fn encrypt_index_update(index_update: &IndexUpdate, k1: &[u8], k2: &[u8]) -> EncryptedIndexUpdate {
     let mut encr = EncryptedIndexUpdate::new();
 
@@ -131,7 +203,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_hashing_and_xor(){
+    fn test_hashing_and_xor() {
         let t = &Term { term: "term".to_string() };
         let key = hex!("1234567890");
         let doc_id = 78361473624;
@@ -143,9 +215,8 @@ mod tests {
 
     #[test]
     fn test_encrypt_decrypt() {
-        let key = SymmetricKey {
-            key: Aes256Gcm::generate_key(OsRng)
-        };
+        let key = SymmetricKey::new();
+
         let document = Document {
             id: 42,
             title: "title".to_string(),
