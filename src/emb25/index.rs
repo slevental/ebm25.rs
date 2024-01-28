@@ -3,9 +3,10 @@ use std::sync::Mutex;
 use serde::{Deserialize, Serialize};
 
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, PartialEq, Debug)]
 pub struct Document {
     pub id: String,
+    pub title: String,
     pub content: String,
 }
 
