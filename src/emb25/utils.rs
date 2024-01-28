@@ -24,4 +24,12 @@ mod tests {
         let tokens = tokenize(text);
         assert_eq!(tokens, vec!["This", "is", "a", "test"]);
     }
+
+    #[test]
+    fn test_empty_tokenize() {
+        let text = "";
+        let tokens = tokenize(text);
+        let vector: Vec<String> = vec![];
+        assert_eq!(tokens, vector);
+    }
 }
