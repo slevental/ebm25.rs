@@ -1,6 +1,7 @@
 use crate::emb25::crypto::{
-    encrypt, encrypt_index_key, encrypt_index_value, DocumentMeta, EncryptedDocument,
-    EncryptedDocumentStorage, EncryptedIndexUpdate, EncryptedTerm2Document, SymmetricKey,
+    encrypt, encrypt_index_key, encrypt_index_value, get_document_meta, DocumentMeta,
+    EncryptedDocument, EncryptedDocumentStorage, EncryptedIndexUpdate, EncryptedTerm2Document,
+    SymmetricKey,
 };
 use crate::emb25::index::{Term, Term2Document};
 use crate::{group_by, tokenize, Document, IndexUpdate};
@@ -31,9 +32,16 @@ impl Keys {
     }
 }
 
+#[derive(Deserialize, Serialize, PartialEq, Debug)]
+pub struct Query {
+    pub terms: Vec<Term>,
+    pub query: Vec<Vec<u8>>,
+}
+
 pub struct Indexer {
+    pub dictionary: Dictionary,
+
     keys: Keys,
-    dictionary: Dictionary,
     documents: HashMap<u64, Document>,
     index_records: Vec<Term2Document>,
 }
@@ -41,11 +49,40 @@ pub struct Indexer {
 impl Indexer {
     pub fn new() -> Self {
         Self {
-            keys: Keys::new(),
             dictionary: Dictionary::new(),
+            keys: Keys::new(),
             documents: HashMap::new(),
             index_records: Vec::new(),
         }
+    }
+
+    pub fn meta(&self, term: &Term, value: &Vec<u8>) -> DocumentMeta {
+        get_document_meta(&term, value, &self.keys.value_key)
+    }
+
+    pub fn query(&self, text: String) -> Query {
+        let tokens = tokenize(&text);
+        let grouped = group_by(&tokens);
+        let mut terms = Vec::new();
+        let mut query = Vec::new();
+
+        for (token, count) in grouped.iter() {
+            let documents = self.dictionary.freq(token).unwrap_or(&0);
+
+            // to make server document storage safer we cannot let the server
+            // enumerate through the list of documents in index, but we can
+            // optimize it eventually by sending hash function state that could be
+            // updated with indices until documents remain in the index
+            for i in 0..*documents {
+                let id = i + 1;
+                let mut term = Term::new(token.clone(), id);
+                term.score_mult(*count as f64);
+                query.push(encrypt_index_key(&term, &self.keys.index_key));
+                terms.push(term);
+            }
+        }
+
+        Query { terms, query }
     }
 
     pub fn add(&mut self, text: String) -> Document {

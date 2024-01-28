@@ -9,7 +9,7 @@ pub struct Document {
     pub content: String,
 }
 
-#[derive(Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Deserialize, Serialize, Clone, PartialEq, Debug)]
 pub struct Term {
     pub term: String,
 
@@ -18,11 +18,21 @@ pub struct Term {
     // this is done to avoid collisions in the index and
     // prevent it from statistical attacks
     pub id: u64,
+
+    pub score: f64,
 }
 
 impl Term {
     pub fn new(term: String, id: u64) -> Self {
-        Self { term, id }
+        Self {
+            term,
+            id,
+            score: 1.0,
+        }
+    }
+
+    pub fn score_mult(&mut self, score: f64) {
+        self.score *= score;
     }
 }
 

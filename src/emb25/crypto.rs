@@ -46,9 +46,9 @@ impl SymmetricKey {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct EncryptedDocument {
-    id: u64,
-    nonce: Vec<u8>,
-    ciphertext: Vec<u8>,
+    pub id: u64,
+    pub nonce: Vec<u8>,
+    pub ciphertext: Vec<u8>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
@@ -61,6 +61,10 @@ impl EncryptedIndex {
         Self {
             index: HashMap::new(),
         }
+    }
+
+    pub fn len(&self) -> usize {
+        self.index.len()
     }
 
     pub fn update(&mut self, index_update: &EncryptedIndexUpdate) {
@@ -80,7 +84,7 @@ impl EncryptedIndex {
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct EncryptedDocumentStorage {
-    documents: HashMap<u64, EncryptedDocument>,
+    pub documents: HashMap<u64, EncryptedDocument>,
 }
 
 impl EncryptedDocumentStorage {
@@ -101,22 +105,6 @@ impl EncryptedDocumentStorage {
 
 #[derive(PartialEq, Debug, Serialize, Deserialize)]
 pub struct EncryptedTerm2Document(Vec<u8>, Vec<u8>);
-
-pub struct SearchTerm {
-    pub term: Vec<u8>,
-}
-
-impl SearchTerm {
-    pub fn new(term: Vec<u8>) -> Self {
-        Self { term }
-    }
-
-    pub fn seq(&self, id: u64) -> Self {
-        Self {
-            term: id.to_be_bytes().to_vec(),
-        }
-    }
-}
 
 impl EncryptedTerm2Document {
     pub fn new(term: Vec<u8>, document: Vec<u8>) -> Self {
@@ -142,6 +130,10 @@ impl EncryptedIndexUpdate {
 
     pub fn add(&mut self, term: Vec<u8>, document: Vec<u8>) {
         self.add.push(EncryptedTerm2Document(term, document));
+    }
+
+    pub fn len(&self) -> usize {
+        self.add.len()
     }
 }
 
@@ -178,7 +170,7 @@ pub fn encrypt_index_value(term: &Term, meta: &DocumentMeta, key: &[u8]) -> Vec<
     v
 }
 
-pub fn get_document_meta(term: &Term, value: Vec<u8>, key: &[u8]) -> DocumentMeta {
+pub fn get_document_meta(term: &Term, value: &Vec<u8>, key: &[u8]) -> DocumentMeta {
     let hasher = initialize_hasher_sha256(&term, key);
 
     let h = hasher.finalize();
@@ -269,13 +261,14 @@ mod tests {
         let t = &Term {
             term: "term".to_string(),
             id: 42,
+            score: 1.0,
         };
         let key = hex!("1234567890");
 
         let meta = DocumentMeta::new(78361473624, 523232, 42484759348);
 
         let hash = encrypt_index_value(t, &meta, &key);
-        let meta2 = get_document_meta(t, hash, &key);
+        let meta2 = get_document_meta(t, &hash, &key);
 
         assert_eq!(meta, meta2);
     }

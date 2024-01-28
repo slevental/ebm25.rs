@@ -8,5 +8,5 @@ pub use crypto::{
     EncryptedTerm2Document,
 };
 pub use index::{Document, IndexUpdate};
-pub use indexer::Indexer;
+pub use indexer::{Indexer, Query};
 pub use utils::{group_by, tokenize};
