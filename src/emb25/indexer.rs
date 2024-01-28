@@ -1,7 +1,4 @@
-use crate::emb25::crypto::{
-    encrypt, encrypt_index_document_key, encrypt_index_document_val, EncryptedDocument,
-    EncryptedDocumentStorage, EncryptedIndexUpdate, EncryptedTerm2Document, SymmetricKey,
-};
+use crate::emb25::crypto::{DocumentMeta, encrypt, encrypt_index_key, encrypt_index_value, EncryptedDocument, EncryptedDocumentStorage, EncryptedIndexUpdate, EncryptedTerm2Document, SymmetricKey};
 use crate::emb25::index::{Term, Term2Document};
 use crate::{tokenize, Document, IndexUpdate};
 use rand::{rngs::OsRng, RngCore};
@@ -98,9 +95,12 @@ impl Indexer {
                     let term = record.term.clone();
                     let freq = record.freq;
                     let document = record.document.clone();
-                    let key = encrypt_index_document_key(&term, freq, &self.keys.index_key);
+                    let key = encrypt_index_key(&term, freq, &self.keys.index_key);
+                    let meta = DocumentMeta::new(document.id,
+                                                 document.content.len() as u64,
+                                                 freq as u64);
                     let value =
-                        encrypt_index_document_val(&term, freq, document.id, &self.keys.value_key);
+                        encrypt_index_value(&term, freq, &meta, &self.keys.value_key);
 
                     EncryptedTerm2Document::new(key, value)
                 })
@@ -136,7 +136,7 @@ impl Dictionary {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::emb25::crypto::{decrypt, get_document_id, EncryptedIndex};
+    use crate::emb25::crypto::{decrypt, get_document_meta, EncryptedIndex};
 
     #[test]
     fn test_add() {
@@ -160,15 +160,15 @@ mod tests {
         let term = Term::new("This".to_string());
 
         let freq = indexer.dictionary.freq(&term).unwrap();
-        let key_req = encrypt_index_document_key(&term, *freq, &indexer.keys.index_key);
+        let key_req = encrypt_index_key(&term, *freq, &indexer.keys.index_key);
 
         let val_res = index.get(&key_req).unwrap();
-        let id = get_document_id(&term, *freq, val_res.clone(), &indexer.keys.value_key);
+        let meta = get_document_meta(&term, *freq, val_res.clone(), &indexer.keys.value_key);
 
-        assert_eq!(id, document.id);
+        assert_eq!(meta.id, document.id);
 
         let decr = decrypt(
-            encrypted_doc_storage.get(id).unwrap(),
+            encrypted_doc_storage.get(meta.id).unwrap(),
             &indexer.keys.document_key,
         );
         assert_eq!(decr.content, document.content)

@@ -18,6 +18,24 @@ pub struct SymmetricKey {
     key: Key<Aes256Gcm>,
 }
 
+// Struct to store the metadata of a document
+// id: is the id of the document in the database
+// size: is the size of the document in bytes
+// f: is the frequency of term that was used in the search in this document (see. TF of tf-idf)
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+pub struct DocumentMeta {
+    pub id: u64,
+    // id of the document in the
+    pub size: u64,
+    pub f: u64,
+}
+
+impl DocumentMeta {
+    pub fn new(id: u64, size: u64, f: u64) -> Self {
+        Self { id, size, f }
+    }
+}
+
 impl SymmetricKey {
     pub fn new() -> Self {
         Self {
@@ -132,34 +150,55 @@ fn initialize_hasher_sha256(term: &&Term, freq: &u32, key: &[u8]) -> CoreWrapper
     hasher
 }
 
-pub fn encrypt_index_document_key(term: &Term, freq: u32, key: &[u8]) -> Vec<u8> {
+pub fn encrypt_index_key(term: &Term, freq: u32, key: &[u8]) -> Vec<u8> {
     let hasher = initialize_hasher_sha256(&term, &freq, key);
     hasher.finalize().to_vec()
 }
 
-pub fn encrypt_index_document_val(term: &Term, freq: u32, doc_id: u64, key: &[u8]) -> Vec<u8> {
+pub fn encrypt_index_value(term: &Term, freq: u32, meta: &DocumentMeta, key: &[u8]) -> Vec<u8> {
     let mut hasher = initialize_hasher_sha256(&term, &freq, key);
 
-    let value = hasher.finalize();
-    let value = &value[0..8];
-    let value = u64::from_be_bytes(value.try_into().unwrap());
-    (value ^ doc_id).to_be_bytes().to_vec()
+    let arr = hasher.finalize();
+    let p1 = u64::from_be_bytes(arr[0..8].try_into().unwrap());
+    let p2 = u64::from_be_bytes(arr[8..16].try_into().unwrap());
+    let p3 = u64::from_be_bytes(arr[16..24].try_into().unwrap());
+
+    let mut v = Vec::new();
+    v.extend_from_slice(&(p1 ^ meta.id).to_be_bytes());
+    v.extend_from_slice(&(p2 ^ meta.f).to_be_bytes());
+    v.extend_from_slice(&(p3 ^ meta.size).to_be_bytes());
+    v
 }
 
-pub fn get_document_id(term: &Term, freq: u32, value: Vec<u8>, key: &[u8]) -> u64 {
+pub fn get_document_meta(term: &Term, freq: u32, value: Vec<u8>, key: &[u8]) -> DocumentMeta {
     let hasher = initialize_hasher_sha256(&term, &freq, key);
 
     let h = hasher.finalize();
-    let h = &h[0..8];
-    let h = u64::from_be_bytes(h.try_into().unwrap());
+    let id_xor = u64::from_be_bytes(h[0..8].try_into().unwrap());
+    let fr_xor = u64::from_be_bytes(h[8..16].try_into().unwrap());
+    let si_xor = u64::from_be_bytes(h[16..24].try_into().unwrap());
 
-    if value.len() != 8 {
+    if value.len() != 24 {
         panic!("value length is not 8");
     }
 
-    let array: [u8; 8] = value.try_into().expect("Exact length checked");
-    let v = u64::from_be_bytes(array);
-    h ^ v
+    let mut p1: [u8; 8] = [0; 8];
+    let mut p2: [u8; 8] = [0; 8];
+    let mut p3: [u8; 8] = [0; 8];
+
+    p1.copy_from_slice(&value[0..8]);
+    p2.copy_from_slice(&value[8..16]);
+    p3.copy_from_slice(&value[16..24]);
+
+    let p1 = u64::from_be_bytes(p1);
+    let p2 = u64::from_be_bytes(p2);
+    let p3 = u64::from_be_bytes(p3);
+
+    DocumentMeta {
+        id: id_xor ^ p1,
+        f: fr_xor ^ p2,
+        size: si_xor ^ p3,
+    }
 }
 
 pub fn encrypt_index_update(
@@ -170,8 +209,11 @@ pub fn encrypt_index_update(
     let mut encr = EncryptedIndexUpdate::new();
 
     index_update.relations.iter().for_each(|r| {
-        let key_vec = encrypt_index_document_key(&r.term, r.freq, k1);
-        let value_vec = encrypt_index_document_val(&r.term, r.freq, r.document.id, k2);
+        let key_vec = encrypt_index_key(&r.term, r.freq, k1);
+        let meta = DocumentMeta::new(r.document.id,
+                                     r.document.content.len() as u64,
+                                     r.freq as u64);
+        let value_vec = encrypt_index_value(&r.term, r.freq, &meta, k2);
         encr.add(key_vec, value_vec);
     });
 
@@ -217,11 +259,14 @@ mod tests {
             term: "term".to_string(),
         };
         let key = hex!("1234567890");
-        let doc_id = 78361473624;
-        let hash = encrypt_index_document_val(t, 42, doc_id, &key);
-        let id = get_document_id(t, 42, hash, &key);
 
-        assert_eq!(id, doc_id);
+        let meta = DocumentMeta::new(78361473624,
+                                     523232, 42484759348);
+
+        let hash = encrypt_index_value(t, 42, &meta, &key);
+        let meta2 = get_document_meta(t, 42, hash, &key);
+
+        assert_eq!(meta, meta2);
     }
 
     #[test]
