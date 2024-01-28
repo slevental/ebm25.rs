@@ -1,5 +1,5 @@
 use crate::emb25::crypto::{
-    encrypt, encrypt_index_key, encrypt_index_value, get_document_meta, DocumentMeta,
+    decrypt, encrypt, encrypt_index_key, encrypt_index_value, get_document_meta, DocumentMeta,
     EncryptedDocument, EncryptedDocumentStorage, EncryptedIndexUpdate, EncryptedTerm2Document,
     SymmetricKey,
 };
@@ -44,6 +44,40 @@ pub struct Indexer {
     keys: Keys,
     documents: HashMap<u64, Document>,
     index_records: Vec<Term2Document>,
+
+    total_document_size: u64,
+}
+
+// replace with enum later
+pub struct BM25 {
+    k1: f64,
+    b: f64,
+    avgdl: f64,
+    doc_count: u64,
+}
+
+impl BM25 {
+    fn new(k1: f64, b: f64, avgdl: f64, doc_count: u64) -> BM25 {
+        BM25 {
+            k1,
+            b,
+            avgdl,
+            doc_count,
+        }
+    }
+
+    fn idf(&self, doc_count: u64, doc_freq: u64) -> f64 {
+        (1. + (doc_count as f64 - doc_freq as f64 + 0.5) / (doc_freq as f64 + 0.5)).ln()
+    }
+
+    pub fn score(&self, doc_len: u64, term_freq: u64, doc_freq: u64) -> f64 {
+        let idf = self.idf(self.doc_count, doc_freq);
+        let term_freq = term_freq as f64;
+        let doc_len = doc_len as f64;
+
+        idf * (term_freq * (self.k1 + 1.0))
+            / (term_freq + self.k1 * (1.0 - self.b + self.b * doc_len / self.avgdl))
+    }
 }
 
 impl Indexer {
@@ -53,11 +87,22 @@ impl Indexer {
             keys: Keys::new(),
             documents: HashMap::new(),
             index_records: Vec::new(),
+            total_document_size: 0u64,
         }
     }
 
     pub fn meta(&self, term: &Term, value: &Vec<u8>) -> DocumentMeta {
         get_document_meta(&term, value, &self.keys.value_key)
+    }
+
+    pub fn decrypt(&self, enc_doc: &EncryptedDocument) -> Document {
+        let decr = decrypt(enc_doc, &self.keys.document_key);
+        decr
+    }
+
+    pub fn bm25(&self) -> BM25 {
+        let avgdl = self.total_document_size as f64 / self.documents.len() as f64;
+        BM25::new(1.2, 0.75, avgdl, self.documents.len() as u64)
     }
 
     pub fn query(&self, text: String) -> Query {
@@ -98,6 +143,7 @@ impl Indexer {
         };
 
         self.documents.insert(id, document.clone());
+        self.total_document_size += text.len() as u64;
 
         // get terms from text
         let tokens = tokenize(&text);

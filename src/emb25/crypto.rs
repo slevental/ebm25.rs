@@ -179,7 +179,8 @@ pub fn get_document_meta(term: &Term, value: &Vec<u8>, key: &[u8]) -> DocumentMe
     let si_xor = u64::from_be_bytes(h[16..24].try_into().unwrap());
 
     if value.len() != 24 {
-        panic!("value length is not 8");
+        // rest might be used for checksum
+        panic!("value length is not 24");
     }
 
     let mut p1: [u8; 8] = [0; 8];
