@@ -1,4 +1,7 @@
-use crate::emb25::crypto::{DocumentMeta, encrypt, encrypt_index_key, encrypt_index_value, EncryptedDocument, EncryptedDocumentStorage, EncryptedIndexUpdate, EncryptedTerm2Document, SymmetricKey};
+use crate::emb25::crypto::{
+    encrypt, encrypt_index_key, encrypt_index_value, DocumentMeta, EncryptedDocument,
+    EncryptedDocumentStorage, EncryptedIndexUpdate, EncryptedTerm2Document, SymmetricKey,
+};
 use crate::emb25::index::{Term, Term2Document};
 use crate::{tokenize, Document, IndexUpdate};
 use rand::{rngs::OsRng, RngCore};
@@ -96,11 +99,9 @@ impl Indexer {
                     let freq = record.freq;
                     let document = record.document.clone();
                     let key = encrypt_index_key(&term, freq, &self.keys.index_key);
-                    let meta = DocumentMeta::new(document.id,
-                                                 document.content.len() as u64,
-                                                 freq as u64);
-                    let value =
-                        encrypt_index_value(&term, freq, &meta, &self.keys.value_key);
+                    let meta =
+                        DocumentMeta::new(document.id, document.content.len() as u64, freq as u64);
+                    let value = encrypt_index_value(&term, freq, &meta, &self.keys.value_key);
 
                     EncryptedTerm2Document::new(key, value)
                 })

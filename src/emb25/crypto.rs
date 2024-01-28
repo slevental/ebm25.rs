@@ -210,9 +210,11 @@ pub fn encrypt_index_update(
 
     index_update.relations.iter().for_each(|r| {
         let key_vec = encrypt_index_key(&r.term, r.freq, k1);
-        let meta = DocumentMeta::new(r.document.id,
-                                     r.document.content.len() as u64,
-                                     r.freq as u64);
+        let meta = DocumentMeta::new(
+            r.document.id,
+            r.document.content.len() as u64,
+            r.freq as u64,
+        );
         let value_vec = encrypt_index_value(&r.term, r.freq, &meta, k2);
         encr.add(key_vec, value_vec);
     });
@@ -260,8 +262,7 @@ mod tests {
         };
         let key = hex!("1234567890");
 
-        let meta = DocumentMeta::new(78361473624,
-                                     523232, 42484759348);
+        let meta = DocumentMeta::new(78361473624, 523232, 42484759348);
 
         let hash = encrypt_index_value(t, 42, &meta, &key);
         let meta2 = get_document_meta(t, 42, hash, &key);
