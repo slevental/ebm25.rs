@@ -1,14 +1,7 @@
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use std::sync::Mutex;
 use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
-
-// Define a structure for the document
-#[derive(Deserialize, Serialize)]
-struct Document {
-    id: String,
-    content: String,
-}
+use ebm25::Document;
 
 // Shared state for indexing documents
 struct IndexState {

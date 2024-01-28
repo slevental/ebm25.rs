@@ -3,10 +3,29 @@ name = "ebm25"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[bin]]
+name = "server"
+path = "./src/bin/server.rs"
+
+[[bin]]
+name = "client"
+path = "./src/bin/client.rs"
+
+[lib]
+name = "ebm25"
 
 [dependencies]
 actix-web = "4.4.1"
 actix-rt = "2.5"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+
+# for the document encryption
+aes-gcm = "0.10.3"
+
+# hashing for the index
+sha3 = "0.10.8"
+
+# for fuzzy search over local vocabulary
+levenshtein_automata = "0.2.1"
+tantivy = "0.21.1"
