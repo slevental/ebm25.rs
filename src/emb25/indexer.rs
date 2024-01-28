@@ -57,6 +57,8 @@ impl Indexer {
             content: text.clone(),
         };
 
+        self.documents.insert(id, document.clone());
+
         // get terms from text
         let tokens = tokenize(&text);
 
@@ -119,7 +121,7 @@ impl Dictionary {
         *entry
     }
 
-    pub fn get(&self, term: &Term) -> Option<&u32> {
+    pub fn freq(&self, term: &Term) -> Option<&u32> {
         self.terms.get(term)
     }
 }
@@ -127,7 +129,7 @@ impl Dictionary {
 
 #[cfg(test)]
 mod tests {
-    use crate::emb25::crypto::{EncryptedIndex, get_document_id};
+    use crate::emb25::crypto::{decrypt, EncryptedIndex, get_document_id};
     use super::*;
 
     #[test]
@@ -150,12 +152,16 @@ mod tests {
 
         // search
         let term = Term::new("This".to_string());
-        let freq = indexer.dictionary.get(&term).unwrap();
+
+        let freq = indexer.dictionary.freq(&term).unwrap();
         let key_req = encrypt_index_document_key(&term, *freq, &indexer.keys.index_key);
 
         let val_res = index.get(&key_req).unwrap();
         let id = get_document_id(&term, *freq, val_res.clone(), &indexer.keys.value_key);
 
         assert_eq!(id, document.id);
+
+        let decr = decrypt(encrypted_doc_storage.get(id).unwrap(), &indexer.keys.document_key);
+        assert_eq!(decr.content, document.content)
     }
 }
