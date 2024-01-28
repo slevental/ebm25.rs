@@ -1,7 +1,6 @@
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Mutex;
-use serde::{Deserialize, Serialize};
-
 
 #[derive(Deserialize, Serialize, PartialEq, Clone, Debug)]
 pub struct Document {
@@ -17,9 +16,7 @@ pub struct Term {
 
 impl Term {
     pub fn new(term: String) -> Self {
-        Self {
-            term,
-        }
+        Self { term }
     }
 }
 

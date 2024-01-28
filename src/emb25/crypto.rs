@@ -1,14 +1,17 @@
-use std::collections::HashMap;
-use aes_gcm::{aead::{Aead, AeadCore, KeyInit, OsRng, Nonce}, Aes256Gcm, Key, AesGcm};
+use crate::emb25::index::{IndexUpdate, Term, Term2Document};
+use crate::Document;
 use aes_gcm::aead::consts::U12;
 use aes_gcm::aes::Aes256;
-use sha3::{Digest, Sha3_256, Sha3_256Core};
+use aes_gcm::{
+    aead::{Aead, AeadCore, KeyInit, Nonce, OsRng},
+    Aes256Gcm, AesGcm, Key,
+};
 use hex_literal::hex;
 use serde::{Deserialize, Serialize};
-use sha3::digest::{DynDigest, Update};
 use sha3::digest::core_api::CoreWrapper;
-use crate::Document;
-use crate::emb25::index::{IndexUpdate, Term, Term2Document};
+use sha3::digest::{DynDigest, Update};
+use sha3::{Digest, Sha3_256, Sha3_256Core};
+use std::collections::HashMap;
 
 #[derive(Clone)]
 pub struct SymmetricKey {
@@ -105,9 +108,7 @@ impl EncryptedIndexUpdate {
 
 impl EncryptedIndexUpdate {
     pub fn new() -> Self {
-        Self {
-            add: Vec::new(),
-        }
+        Self { add: Vec::new() }
     }
 
     pub fn add(&mut self, term: Vec<u8>, document: Vec<u8>) {
@@ -156,7 +157,11 @@ pub fn get_document_id(term: &Term, freq: u32, value: Vec<u8>, key: &[u8]) -> u6
     h ^ v
 }
 
-pub fn encrypt_index_update(index_update: &IndexUpdate, k1: &[u8], k2: &[u8]) -> EncryptedIndexUpdate {
+pub fn encrypt_index_update(
+    index_update: &IndexUpdate,
+    k1: &[u8],
+    k2: &[u8],
+) -> EncryptedIndexUpdate {
     let mut encr = EncryptedIndexUpdate::new();
 
     index_update.relations.iter().for_each(|r| {
@@ -203,7 +208,9 @@ mod tests {
 
     #[test]
     fn test_hashing_and_xor() {
-        let t = &Term { term: "term".to_string() };
+        let t = &Term {
+            term: "term".to_string(),
+        };
         let key = hex!("1234567890");
         let doc_id = 78361473624;
         let hash = encrypt_index_document_val(t, 42, doc_id, &key);

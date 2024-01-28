@@ -1,7 +1,7 @@
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
-use std::sync::Mutex;
-use std::collections::HashMap;
 use ebm25::Document;
+use std::collections::HashMap;
+use std::sync::Mutex;
 
 // Shared state for indexing documents
 struct IndexState {
@@ -38,7 +38,7 @@ async fn main() -> std::io::Result<()> {
             .route("/index", web::post().to(index_doc))
             .route("/search/{id}", web::get().to(search_doc))
     })
-        .bind("127.0.0.1:8080")?
-        .run()
-        .await
+    .bind("127.0.0.1:8080")?
+    .run()
+    .await
 }

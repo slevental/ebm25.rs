@@ -1,6 +1,5 @@
 use tantivy::tokenizer::*;
 
-
 pub fn tokenize(text: &str) -> Vec<String> {
     let mut en_stem = TextAnalyzer::builder(SimpleTokenizer::default())
         .filter(RemoveLongFilter::limit(40))

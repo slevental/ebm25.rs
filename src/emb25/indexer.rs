@@ -1,9 +1,12 @@
-use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
-use crate::emb25::crypto::{encrypt, encrypt_index_document_key, encrypt_index_document_val, EncryptedDocument, EncryptedDocumentStorage, EncryptedIndexUpdate, EncryptedTerm2Document, SymmetricKey};
+use crate::emb25::crypto::{
+    encrypt, encrypt_index_document_key, encrypt_index_document_val, EncryptedDocument,
+    EncryptedDocumentStorage, EncryptedIndexUpdate, EncryptedTerm2Document, SymmetricKey,
+};
 use crate::emb25::index::{Term, Term2Document};
-use rand::{RngCore, rngs::OsRng};
-use crate::{Document, IndexUpdate, tokenize};
+use crate::{tokenize, Document, IndexUpdate};
+use rand::{rngs::OsRng, RngCore};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 struct Keys {
     document_key: SymmetricKey,
@@ -89,18 +92,22 @@ impl Indexer {
 
     pub fn get_encrypted_index(&self) -> EncryptedIndexUpdate {
         EncryptedIndexUpdate::insert(
-            self.index_records.iter().map(|record| {
-                let term = record.term.clone();
-                let freq = record.freq;
-                let document = record.document.clone();
-                let key = encrypt_index_document_key(&term, freq, &self.keys.index_key);
-                let value = encrypt_index_document_val(&term, freq, document.id, &self.keys.value_key);
+            self.index_records
+                .iter()
+                .map(|record| {
+                    let term = record.term.clone();
+                    let freq = record.freq;
+                    let document = record.document.clone();
+                    let key = encrypt_index_document_key(&term, freq, &self.keys.index_key);
+                    let value =
+                        encrypt_index_document_val(&term, freq, document.id, &self.keys.value_key);
 
-                EncryptedTerm2Document::new(key, value)
-            }).collect())
+                    EncryptedTerm2Document::new(key, value)
+                })
+                .collect(),
+        )
     }
 }
-
 
 #[derive(Deserialize, Serialize, PartialEq, Debug)]
 pub struct Dictionary {
@@ -126,11 +133,10 @@ impl Dictionary {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use crate::emb25::crypto::{decrypt, EncryptedIndex, get_document_id};
     use super::*;
+    use crate::emb25::crypto::{decrypt, get_document_id, EncryptedIndex};
 
     #[test]
     fn test_add() {
@@ -161,7 +167,10 @@ mod tests {
 
         assert_eq!(id, document.id);
 
-        let decr = decrypt(encrypted_doc_storage.get(id).unwrap(), &indexer.keys.document_key);
+        let decr = decrypt(
+            encrypted_doc_storage.get(id).unwrap(),
+            &indexer.keys.document_key,
+        );
         assert_eq!(decr.content, document.content)
     }
 }
