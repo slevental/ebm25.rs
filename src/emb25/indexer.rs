@@ -250,7 +250,7 @@ mod tests {
 
         let key_req = encrypt_index_key(&term, &indexer.keys.index_key);
         let val_res = index.get(&key_req).unwrap();
-        let meta = get_document_meta(&term, val_res.clone(), &indexer.keys.value_key);
+        let meta = get_document_meta(&term, &val_res, &indexer.keys.value_key);
 
         assert_eq!(meta.id, document.id);
 
