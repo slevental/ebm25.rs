@@ -1,8 +1,6 @@
-use ebm25::{BM25, Document, EncryptedDocument, Term, DocumentMeta, Indexer, Query};
+use ebm25::{Document, DocumentMeta, EncryptedDocument, Indexer, Query, Term, BM25};
 use std::collections::HashMap;
 use std::ops::Add;
-
-
 
 struct Client {
     indexer: Indexer,
@@ -43,7 +41,11 @@ impl Client {
         let client = reqwest::Client::new();
 
         for document in storage.documents.values() {
-            let url = self.url.clone().add("/index/").add(&document.id.to_string());
+            let url = self
+                .url
+                .clone()
+                .add("/index/")
+                .add(&document.id.to_string());
             client.post(url).json(&document).send().await.unwrap();
         }
 
@@ -145,7 +147,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     client.flush().await;
 
-    let mut query = client.query("gathering".to_string());
+    let mut query = client.query("fox fox fox lazy".to_string());
     let result = client.search(&mut query, 5).await;
 
     println!("Result: {:?}", result);
