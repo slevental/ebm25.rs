@@ -16,6 +16,26 @@ were accessed by the user, the latter is the set of queries that were issued by 
 This repo is an attempt to implement SEE with BM25 support. It's not a production-ready implementation, it's a proof of
 concept.
 
+## Algorithm
+
+Server has two entities, the index and the storage for encrypted documents. Documents stored in the storage by random
+ids, but technically they could use any kind of identifier (e.g. guid, or hash from content - to prevent duplicates).
+But exposed identifiers might be used to leak information, so it's better to use random ids.
+
+Index is a hash map that maps from `K = SHA256(s1 || term || l)`, where `l` is a number of documents that has this
+term, for instance if word `fox` appears in 3 documents that we would have 3
+keys:
+
+`K = [ SHA256([s1] || fox || 1), SHA256([s1] || fox || 2), SHA256([s1] || fox || 3)]`.
+
+`s1` - is a secret key that is known only to the client;
+
+The value of this map is `V = SHA256([secret2] || term || l) ^ (document_id, term_frequency, document_size)`
+
+When client searches the document it generates all keys (or limiting by number of max_l) and receives the values from the server, the value then allowed client to get meta information: `(document_id, term_frequency, document_size)`; 
+
+The client then computes BM25 score for each document and retrieves the top-k documents. Client might also introduce some noise into the original queries and into document retrieval queries to prevent leakage of Access Pattern and Query Pattern. 
+
 ## SEE
 
 Searchable Symmetric Encryption is allowing to perform search over encrypted data. The main idea is to encrypt the data
@@ -75,3 +95,4 @@ k1, b - free parameters, usually k1 = 1.2, b = 0.75
 - [CryptDB: Protecting Confidentiality with Encrypted Query Processing](http://people.csail.mit.edu/nickolai/papers/raluca-cryptdb.pdf)
 - [Secure Search via Multi-Ring Fully Homomorphic Encryption](https://eprint.iacr.org/2018/245.pdf)
 - [A Survey of Order-Preserving Encryption for Numeric Data](https://arxiv.org/pdf/1801.09933.pdf)
+- [Rethinking Searchable Symmetric Encryption](https://www.research-collection.ethz.ch/bitstream/handle/20.500.11850/564585/1/RethinkingSearchableSymmetricEncryption.pdf)
