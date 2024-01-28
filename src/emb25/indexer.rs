@@ -39,6 +39,9 @@ pub struct Query {
 }
 
 pub struct Indexer {
+    // client only needs to persist dictionary
+    // and total document size, the rest can be
+    // reconstructed from the server state
     pub dictionary: Dictionary,
 
     keys: Keys,
