@@ -5,19 +5,24 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, PartialEq, Debug)]
 pub struct Document {
-    pub id: String,
+    pub id: u64,
     pub title: String,
     pub content: String,
 }
 
-pub struct Index {
-    index: Mutex<HashMap<String, String>>,
-    db: Mutex<HashMap<String, Document>>,
-}
-
+#[derive(Deserialize, Serialize, PartialEq, Eq, Hash, Debug)]
 pub struct Term {
-
+    pub term: String,
 }
-pub struct Query {
 
+#[derive(PartialEq, Debug)]
+pub struct Term2Document {
+    pub term: Term,
+    pub freq: u32,
+    pub document: Document,
+}
+
+#[derive(PartialEq, Debug)]
+pub struct IndexUpdate {
+    pub relations: Vec<Term2Document>
 }
