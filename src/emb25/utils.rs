@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use tantivy::tokenizer::*;
 
 pub fn tokenize(text: &str) -> Vec<String> {
@@ -11,6 +12,15 @@ pub fn tokenize(text: &str) -> Vec<String> {
     });
 
     tokens
+}
+
+pub fn group_by(tokens: &Vec<String>) -> HashMap<String, u64> {
+    let mut map = HashMap::new();
+    for token in tokens {
+        let count = map.entry(token.clone()).or_insert(0);
+        *count += 1;
+    }
+    map
 }
 
 #[cfg(test)]

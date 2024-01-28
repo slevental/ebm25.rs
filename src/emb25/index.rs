@@ -12,18 +12,27 @@ pub struct Document {
 #[derive(Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Term {
     pub term: String,
+
+    // Term ID is a special parameter that mean the
+    // Seq number of the document this term is seen in
+    // this is done to avoid collisions in the index and
+    // prevent it from statistical attacks
+    pub id: u64,
 }
 
 impl Term {
-    pub fn new(term: String) -> Self {
-        Self { term }
+    pub fn new(term: String, id: u64) -> Self {
+        Self { term, id }
     }
 }
 
 #[derive(PartialEq, Debug)]
 pub struct Term2Document {
     pub term: Term,
-    pub freq: u32,
+
+    // How many times this term is seen in the document
+    pub freq: u64,
+
     pub document: Document,
 }
 

@@ -137,26 +137,26 @@ impl EncryptedIndexUpdate {
     }
 }
 
-fn initialize_sha256(term: &&Term, key: &[u8]) -> CoreWrapper<Sha3_256Core> {
+fn initialize_sha256(term: &Term, key: &[u8]) -> CoreWrapper<Sha3_256Core> {
     let mut hasher = Sha3_256::new();
     Digest::update(&mut hasher, key);
     Digest::update(&mut hasher, &term.term.as_bytes());
     hasher
 }
 
-fn initialize_hasher_sha256(term: &&Term, freq: &u32, key: &[u8]) -> CoreWrapper<Sha3_256Core> {
+fn initialize_hasher_sha256(term: &Term, key: &[u8]) -> CoreWrapper<Sha3_256Core> {
     let mut hasher = initialize_sha256(term, key);
-    Digest::update(&mut hasher, &freq.to_be_bytes());
+    Digest::update(&mut hasher, &term.id.to_be_bytes());
     hasher
 }
 
-pub fn encrypt_index_key(term: &Term, freq: u32, key: &[u8]) -> Vec<u8> {
-    let hasher = initialize_hasher_sha256(&term, &freq, key);
+pub fn encrypt_index_key(term: &Term, key: &[u8]) -> Vec<u8> {
+    let hasher = initialize_hasher_sha256(&term, key);
     hasher.finalize().to_vec()
 }
 
-pub fn encrypt_index_value(term: &Term, freq: u32, meta: &DocumentMeta, key: &[u8]) -> Vec<u8> {
-    let mut hasher = initialize_hasher_sha256(&term, &freq, key);
+pub fn encrypt_index_value(term: &Term, meta: &DocumentMeta, key: &[u8]) -> Vec<u8> {
+    let mut hasher = initialize_hasher_sha256(term, key);
 
     let arr = hasher.finalize();
     let p1 = u64::from_be_bytes(arr[0..8].try_into().unwrap());
@@ -170,8 +170,8 @@ pub fn encrypt_index_value(term: &Term, freq: u32, meta: &DocumentMeta, key: &[u
     v
 }
 
-pub fn get_document_meta(term: &Term, freq: u32, value: Vec<u8>, key: &[u8]) -> DocumentMeta {
-    let hasher = initialize_hasher_sha256(&term, &freq, key);
+pub fn get_document_meta(term: &Term, value: Vec<u8>, key: &[u8]) -> DocumentMeta {
+    let hasher = initialize_hasher_sha256(&term, key);
 
     let h = hasher.finalize();
     let id_xor = u64::from_be_bytes(h[0..8].try_into().unwrap());
@@ -209,13 +209,13 @@ pub fn encrypt_index_update(
     let mut encr = EncryptedIndexUpdate::new();
 
     index_update.relations.iter().for_each(|r| {
-        let key_vec = encrypt_index_key(&r.term, r.freq, k1);
+        let key_vec = encrypt_index_key(&r.term, k1);
         let meta = DocumentMeta::new(
             r.document.id,
             r.document.content.len() as u64,
             r.freq as u64,
         );
-        let value_vec = encrypt_index_value(&r.term, r.freq, &meta, k2);
+        let value_vec = encrypt_index_value(&r.term, &meta, k2);
         encr.add(key_vec, value_vec);
     });
 
@@ -259,13 +259,14 @@ mod tests {
     fn test_hashing_and_xor() {
         let t = &Term {
             term: "term".to_string(),
+            id: 42,
         };
         let key = hex!("1234567890");
 
         let meta = DocumentMeta::new(78361473624, 523232, 42484759348);
 
-        let hash = encrypt_index_value(t, 42, &meta, &key);
-        let meta2 = get_document_meta(t, 42, hash, &key);
+        let hash = encrypt_index_value(t, &meta, &key);
+        let meta2 = get_document_meta(t, hash, &key);
 
         assert_eq!(meta, meta2);
     }

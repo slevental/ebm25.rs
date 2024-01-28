@@ -3,7 +3,7 @@ use crate::emb25::crypto::{
     EncryptedDocumentStorage, EncryptedIndexUpdate, EncryptedTerm2Document, SymmetricKey,
 };
 use crate::emb25::index::{Term, Term2Document};
-use crate::{tokenize, Document, IndexUpdate};
+use crate::{tokenize, Document, IndexUpdate, group_by};
 use rand::{rngs::OsRng, RngCore};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -65,13 +65,16 @@ impl Indexer {
         // get terms from text
         let tokens = tokenize(&text);
 
-        for token in tokens {
-            let term = Term::new(token);
-            let freq = self.dictionary.add_or_get(term.clone());
+        // group by term and count the frequency
+        let token_freq = group_by(&tokens);
+
+        for (token, f) in token_freq.iter() {
+            let id = self.dictionary.add_or_get(token.clone());
+            let term = Term::new(token.clone(), id);
 
             self.index_records.push(Term2Document {
                 term,
-                freq,
+                freq: *f,
                 document: document.clone(),
             });
         }
@@ -98,10 +101,10 @@ impl Indexer {
                     let term = record.term.clone();
                     let freq = record.freq;
                     let document = record.document.clone();
-                    let key = encrypt_index_key(&term, freq, &self.keys.index_key);
+                    let key = encrypt_index_key(&term, &self.keys.index_key);
                     let meta =
-                        DocumentMeta::new(document.id, document.content.len() as u64, freq as u64);
-                    let value = encrypt_index_value(&term, freq, &meta, &self.keys.value_key);
+                        DocumentMeta::new(document.id, document.content.len() as u64, freq);
+                    let value = encrypt_index_value(&term, &meta, &self.keys.value_key);
 
                     EncryptedTerm2Document::new(key, value)
                 })
@@ -113,7 +116,7 @@ impl Indexer {
 #[derive(Deserialize, Serialize, PartialEq, Debug)]
 pub struct Dictionary {
     // terms with frequencies
-    pub terms: HashMap<Term, u32>,
+    pub terms: HashMap<String, u64>,
 }
 
 impl Dictionary {
@@ -123,13 +126,13 @@ impl Dictionary {
         }
     }
 
-    pub fn add_or_get(&mut self, term: Term) -> u32 {
+    pub fn add_or_get(&mut self, term: String) -> u64 {
         let entry = self.terms.entry(term).or_insert(0);
         *entry += 1;
         *entry
     }
 
-    pub fn freq(&self, term: &Term) -> Option<&u32> {
+    pub fn freq(&self, term: &str) -> Option<&u64> {
         self.terms.get(term)
     }
 }
@@ -158,13 +161,11 @@ mod tests {
         index.update(&indexer.get_encrypted_index());
 
         // search
-        let term = Term::new("This".to_string());
+        let term = Term::new("This".to_string(), 1);
 
-        let freq = indexer.dictionary.freq(&term).unwrap();
-        let key_req = encrypt_index_key(&term, *freq, &indexer.keys.index_key);
-
+        let key_req = encrypt_index_key(&term, &indexer.keys.index_key);
         let val_res = index.get(&key_req).unwrap();
-        let meta = get_document_meta(&term, *freq, val_res.clone(), &indexer.keys.value_key);
+        let meta = get_document_meta(&term, val_res.clone(), &indexer.keys.value_key);
 
         assert_eq!(meta.id, document.id);
 

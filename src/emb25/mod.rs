@@ -5,4 +5,4 @@ mod utils;
 
 pub use index::{Document, IndexUpdate};
 pub use indexer::Indexer;
-pub use utils::tokenize;
+pub use utils::{tokenize, group_by};
