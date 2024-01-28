@@ -1,6 +1,6 @@
 # Encrypted BM25
 
-![Status](https://github.com/github/docs/actions/workflows/main.yml/badge.svg?branch=main)
+[![Rust](https://github.com/slevental/ebm25.rs/actions/workflows/rust.yml/badge.svg)](https://github.com/slevental/ebm25.rs/actions/workflows/rust.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Searchable Symmetric Encryption with BM25 support
