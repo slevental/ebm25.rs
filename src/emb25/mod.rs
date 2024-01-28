@@ -4,9 +4,13 @@ mod indexer;
 mod utils;
 
 pub use crypto::{
-    EncryptedDocument, EncryptedDocumentStorage, EncryptedIndex, EncryptedIndexUpdate,
+    DocumentMeta,
+    EncryptedDocument,
+    EncryptedDocumentStorage,
+    EncryptedIndex,
+    EncryptedIndexUpdate,
     EncryptedTerm2Document,
 };
-pub use index::{Document, IndexUpdate};
-pub use indexer::{Indexer, Query};
+pub use index::{Document, IndexUpdate, Term, Term2Document};
+pub use indexer::{Indexer, Query, BM25};
 pub use utils::{group_by, tokenize};
