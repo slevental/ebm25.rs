@@ -3,7 +3,7 @@ use crate::emb25::crypto::{
     EncryptedDocumentStorage, EncryptedIndexUpdate, EncryptedTerm2Document, SymmetricKey,
 };
 use crate::emb25::index::{Term, Term2Document};
-use crate::{tokenize, Document, IndexUpdate, group_by};
+use crate::{group_by, tokenize, Document, IndexUpdate};
 use rand::{rngs::OsRng, RngCore};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -87,7 +87,7 @@ impl Indexer {
 
         for document in self.documents.values() {
             let enc_doc = encrypt(document, &self.keys.document_key);
-            encrypted_docs.add(document.id, enc_doc);
+            encrypted_docs.add(enc_doc);
         }
 
         encrypted_docs
@@ -102,8 +102,7 @@ impl Indexer {
                     let freq = record.freq;
                     let document = record.document.clone();
                     let key = encrypt_index_key(&term, &self.keys.index_key);
-                    let meta =
-                        DocumentMeta::new(document.id, document.content.len() as u64, freq);
+                    let meta = DocumentMeta::new(document.id, document.content.len() as u64, freq);
                     let value = encrypt_index_value(&term, &meta, &self.keys.value_key);
 
                     EncryptedTerm2Document::new(key, value)

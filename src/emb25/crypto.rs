@@ -44,8 +44,9 @@ impl SymmetricKey {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct EncryptedDocument {
+    id: u64,
     nonce: Vec<u8>,
     ciphertext: Vec<u8>,
 }
@@ -64,7 +65,7 @@ impl EncryptedIndex {
 
     pub fn update(&mut self, index_update: &EncryptedIndexUpdate) {
         index_update.add.iter().for_each(|r| {
-            self.index.insert(r.t.clone(), r.d.clone());
+            self.index.insert(r.0.clone(), r.1.clone());
         });
     }
 
@@ -89,8 +90,8 @@ impl EncryptedDocumentStorage {
         }
     }
 
-    pub fn add(&mut self, id: u64, document: EncryptedDocument) {
-        self.documents.insert(id, document);
+    pub fn add(&mut self, document: EncryptedDocument) {
+        self.documents.insert(document.id, document);
     }
 
     pub fn get(&self, id: u64) -> Option<&EncryptedDocument> {
@@ -98,22 +99,32 @@ impl EncryptedDocumentStorage {
     }
 }
 
-#[derive(PartialEq, Debug)]
-pub struct EncryptedTerm2Document {
-    t: Vec<u8>,
-    d: Vec<u8>,
+#[derive(PartialEq, Debug, Serialize, Deserialize)]
+pub struct EncryptedTerm2Document(Vec<u8>, Vec<u8>);
+
+pub struct SearchTerm {
+    pub term: Vec<u8>,
 }
 
-impl EncryptedTerm2Document {
-    pub fn new(term: Vec<u8>, document: Vec<u8>) -> Self {
+impl SearchTerm {
+    pub fn new(term: Vec<u8>) -> Self {
+        Self { term }
+    }
+
+    pub fn seq(&self, id: u64) -> Self {
         Self {
-            t: term,
-            d: document,
+            term: id.to_be_bytes().to_vec(),
         }
     }
 }
 
-#[derive(PartialEq, Debug)]
+impl EncryptedTerm2Document {
+    pub fn new(term: Vec<u8>, document: Vec<u8>) -> Self {
+        Self(term, document)
+    }
+}
+
+#[derive(PartialEq, Debug, Serialize, Deserialize)]
 pub struct EncryptedIndexUpdate {
     add: Vec<EncryptedTerm2Document>,
 }
@@ -130,10 +141,7 @@ impl EncryptedIndexUpdate {
     }
 
     pub fn add(&mut self, term: Vec<u8>, document: Vec<u8>) {
-        self.add.push(EncryptedTerm2Document {
-            t: term,
-            d: document,
-        });
+        self.add.push(EncryptedTerm2Document(term, document));
     }
 }
 
@@ -233,6 +241,7 @@ pub fn encrypt(document: &Document, key: &SymmetricKey) -> EncryptedDocument {
     let ciphertext = cipher.encrypt(&nonce, bytes.as_ref()).unwrap();
 
     EncryptedDocument {
+        id: document.id,
         nonce: nonce.to_vec(),
         ciphertext,
     }
