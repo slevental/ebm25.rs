@@ -1,4 +1,8 @@
-# ebm25.rs
+# Encrypted BM25
+
+[![Build Status](https://travis-ci.org/romankh3/encrypted-bm25.svg?branch=master)](https://travis-ci.org/romankh3/encrypted-bm25)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Searchable Symmetric Encryption with BM25 support 
 
 ## Disclaimer

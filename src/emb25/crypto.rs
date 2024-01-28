@@ -119,10 +119,15 @@ impl EncryptedIndexUpdate {
     }
 }
 
-fn initialize_hasher_sha256(term: &&Term, freq: &u32, key: &[u8]) -> CoreWrapper<Sha3_256Core> {
+fn initialize_sha256(term: &&Term, key: &[u8]) -> CoreWrapper<Sha3_256Core> {
     let mut hasher = Sha3_256::new();
     Digest::update(&mut hasher, key);
     Digest::update(&mut hasher, &term.term.as_bytes());
+    hasher
+}
+
+fn initialize_hasher_sha256(term: &&Term, freq: &u32, key: &[u8]) -> CoreWrapper<Sha3_256Core> {
+    let mut hasher = initialize_sha256(term, key);
     Digest::update(&mut hasher, &freq.to_be_bytes());
     hasher
 }
