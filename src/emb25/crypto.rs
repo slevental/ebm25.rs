@@ -1,10 +1,11 @@
 use aes_gcm::{aead::{Aead, AeadCore, KeyInit, OsRng, Nonce}, Aes256Gcm, Key, AesGcm};
 use aes_gcm::aead::consts::U12;
 use aes_gcm::aes::Aes256;
-use sha3::{Digest, Sha3_256};
+use sha3::{Digest, Sha3_256, Sha3_256Core};
 use hex_literal::hex;
 use serde::{Deserialize, Serialize};
 use sha3::digest::{DynDigest, Update};
+use sha3::digest::core_api::CoreWrapper;
 use crate::Document;
 use crate::emb25::index::{IndexUpdate, Term, Term2Document};
 
@@ -45,19 +46,21 @@ impl EncryptedIndexUpdate {
 }
 
 
-pub fn encrypt_index_document_key(term: &Term, freq: u32, key: &[u8]) -> Vec<u8> {
+fn initialize_hasher_sha256(term: &&Term, freq: &u32, key: &[u8]) -> CoreWrapper<Sha3_256Core> {
     let mut hasher = Sha3_256::new();
     Digest::update(&mut hasher, key);
     Digest::update(&mut hasher, &term.term.as_bytes());
     Digest::update(&mut hasher, &freq.to_be_bytes());
+    hasher
+}
+
+pub fn encrypt_index_document_key(term: &Term, freq: u32, key: &[u8]) -> Vec<u8> {
+    let hasher = initialize_hasher_sha256(&term, &freq, key);
     hasher.finalize().to_vec()
 }
 
 pub fn encrypt_index_document_val(term: &Term, freq: u32, doc_id: u64, key: &[u8]) -> Vec<u8> {
-    let mut hasher = Sha3_256::new();
-    Digest::update(&mut hasher, key);
-    Digest::update(&mut hasher, &term.term.as_bytes());
-    Digest::update(&mut hasher, &freq.to_be_bytes());
+    let mut hasher = initialize_hasher_sha256(&term, &freq, key);
 
     let value = hasher.finalize();
     let value = &value[0..8];
@@ -66,10 +69,7 @@ pub fn encrypt_index_document_val(term: &Term, freq: u32, doc_id: u64, key: &[u8
 }
 
 pub fn get_document_id(term: &Term, freq: u32, value: Vec<u8>, key: &[u8]) -> u64 {
-    let mut hasher = Sha3_256::new();
-    Digest::update(&mut hasher, key);
-    Digest::update(&mut hasher, &term.term.as_bytes());
-    Digest::update(&mut hasher, &freq.to_be_bytes());
+    let hasher = initialize_hasher_sha256(&term, &freq, key);
 
     let h = hasher.finalize();
     let h = &h[0..8];
